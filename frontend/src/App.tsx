@@ -70,6 +70,12 @@ const PayeeManagement = lazyWithRetry(() =>
 const IndexStatus = lazyWithRetry(() =>
   import("./pages/IndexStatus").then((m) => ({ default: m.IndexStatus })),
 );
+const AboutDeployment = lazyWithRetry(() =>
+  import("./pages/AboutDeployment").then((m) => ({ default: m.AboutDeployment })),
+);
+const ComponentGallery = lazyWithRetry(() =>
+  import("./pages/dev/ComponentGallery").then((m) => ({ default: m.ComponentGallery })),
+);
 const NotFound = lazyWithRetry(() => import("./pages/NotFound").then((m) => ({ default: m.NotFound })));
 
 // Keyed by the same paths as APP_ROUTES, so the header Menu (built from that
@@ -92,6 +98,7 @@ const ROUTE_ELEMENTS: Record<string, ReactElement> = {
   "/keepalive": <Keepalive />,
   "/admin/payees": <PayeeManagement />,
   "/status": <IndexStatus />,
+  "/about": <AboutDeployment />,
 };
 
 /**
@@ -129,6 +136,7 @@ function App() {
                       path="programme/:programmeId"
                       element={<ProgrammeDetail />}
                     />
+                    <Route path="dev/ui" element={<ComponentGallery />} />
                     <Route path="*" element={<NotFound />} />
                   </Route>
                 </Routes>
