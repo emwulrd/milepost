@@ -15,7 +15,7 @@ export interface DeploymentContract {
   description: string;
 }
 
-export const DEPLOYED_CONTRACTS: DeploymentContract[] = [
+const DEPLOYED_CONTRACTS: DeploymentContract[] = [
   {
     name: 'Registry',
     id: registryNetworks.testnet.contractId,
@@ -43,10 +43,10 @@ export const DEPLOYED_CONTRACTS: DeploymentContract[] = [
   },
 ];
 
-export const APP_BUILD_VERSION = import.meta.env.VITE_APP_VERSION || '0.1.0';
+const APP_BUILD_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';
 
 export function AboutDeployment(): React.JSX.Element {
-  usePageTitle('About this deployment — Milepost');
+  usePageTitle('About This Deployment');
 
   return (
     <div className="container page-wrapper about-deployment">

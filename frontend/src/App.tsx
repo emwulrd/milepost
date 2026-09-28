@@ -73,9 +73,13 @@ const IndexStatus = lazyWithRetry(() =>
 const AboutDeployment = lazyWithRetry(() =>
   import("./pages/AboutDeployment").then((m) => ({ default: m.AboutDeployment })),
 );
-const ComponentGallery = lazyWithRetry(() =>
-  import("./pages/dev/ComponentGallery").then((m) => ({ default: m.ComponentGallery })),
-);
+// Development builds only. Vite replaces `import.meta.env.DEV` with `false` in a
+// production build, so this import and its chunk are dropped entirely.
+const ComponentGallery = import.meta.env.DEV
+  ? lazyWithRetry(() =>
+      import("./pages/dev/ComponentGallery").then((m) => ({ default: m.ComponentGallery })),
+    )
+  : null;
 const NotFound = lazyWithRetry(() => import("./pages/NotFound").then((m) => ({ default: m.NotFound })));
 
 // Keyed by the same paths as APP_ROUTES, so the header Menu (built from that
@@ -136,7 +140,7 @@ function App() {
                       path="programme/:programmeId"
                       element={<ProgrammeDetail />}
                     />
-                    <Route path="dev/ui" element={<ComponentGallery />} />
+                    {ComponentGallery && <Route path="dev/ui" element={<ComponentGallery />} />}
                     <Route path="*" element={<NotFound />} />
                   </Route>
                 </Routes>

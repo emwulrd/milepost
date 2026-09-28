@@ -16,28 +16,47 @@ import {
   CopyButton,
   Deadline,
   Table,
+  List,
+  ListRow,
   Modal,
+  type Column,
 } from '../../components/ui';
-import { Skeleton, EmptyState, ErrorPanel } from '../../components/state/AsyncStates';
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  PendingState,
+  Skeleton,
+  Success,
+} from '../../components/state/AsyncStates';
 import { usePageTitle } from '../../hooks/usePageTitle';
 
+type GalleryRow = { role: string; action: string; badge: 'Open' | 'Review' | 'Settled' };
+
+// Fixed at module load so rendering stays pure; the gallery only needs one
+// future and one past deadline to show both states.
+const NOW_SECONDS = Math.floor(Date.now() / 1000);
+const FUTURE_DEADLINE = NOW_SECONDS + 86_400 * 3;
+const PAST_DEADLINE = NOW_SECONDS - 86_400 * 2;
+
 export function ComponentGallery(): React.JSX.Element {
-  usePageTitle('Component Gallery — Development');
+  usePageTitle('Component Gallery');
   const [modalOpen, setModalOpen] = useState(false);
   const [amountVal, setAmountVal] = useState('100.5');
   const [textVal, setTextVal] = useState('');
   const [radioVal, setRadioVal] = useState('direct');
+  const [dateVal, setDateVal] = useState<number | null>(FUTURE_DEADLINE);
 
   const demoAddress = 'GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ';
   const demoContract = 'CCBQHBNIG5FIJEM6SQZQGTQRO3XXHV2BGVGGUY5JXXZ3Y55ZJSV3HMVF';
 
-  const tableColumns = [
-    { key: 'role', header: 'Role', render: (row: { role: string }) => <strong>{row.role}</strong> },
-    { key: 'action', header: 'Allowed Action', render: (row: { action: string }) => row.action },
-    { key: 'badge', header: 'Status', render: (row: { badge: 'Open' | 'Review' | 'Settled' }) => <PhaseBadge phase={row.badge} /> },
+  const tableColumns: Column<GalleryRow>[] = [
+    { key: 'role', header: 'Role', render: (row) => <strong>{row.role}</strong> },
+    { key: 'action', header: 'Allowed Action', render: (row) => row.action },
+    { key: 'badge', header: 'Status', render: (row) => <PhaseBadge phase={row.badge} /> },
   ];
 
-  const tableData = [
+  const tableData: GalleryRow[] = [
     { role: 'Funder', action: 'Contribute funds to pool', badge: 'Open' as const },
     { role: 'Reviewer', action: 'Submit application reviews', badge: 'Review' as const },
     { role: 'Verifier', action: 'Attest condition completion', badge: 'Settled' as const },
@@ -89,10 +108,10 @@ export function ComponentGallery(): React.JSX.Element {
             <Stat label="Total Volume" value="125,000 XLM" />
           </Card>
           <Card>
-            <Stat label="Active Recipients" value="48" helper="Verified applicants" />
+            <Stat label="Active Recipients" value="48" hint="Verified applicants" />
           </Card>
           <Card>
-            <Stat label="Release Progress" value="84%" helper="16 / 19 tranches" />
+            <Stat label="Release Progress" value="84%" hint="16 / 19 tranches" />
           </Card>
         </div>
       </section>
@@ -121,11 +140,11 @@ export function ComponentGallery(): React.JSX.Element {
           />
           <DateField
             label="Application Deadline"
-            value="2026-10-15"
-            onChange={() => {}}
+            value={dateVal}
+            onChange={setDateVal}
           />
           <RadioGroup
-            legend="Disbursement Mode Option"
+            label="Disbursement Mode Option"
             name="disbursement-mode"
             value={radioVal}
             onChange={setRadioVal}
@@ -150,14 +169,31 @@ export function ComponentGallery(): React.JSX.Element {
           <AddressChip address={demoAddress} showExplorerLink copyLabel="Copy account" />
           <AddressChip address={demoContract} showExplorerLink copyLabel="Copy contract" verified />
           <CopyButton value={demoAddress} label="Copy custom text" showLabel />
-          <Deadline deadline={Math.floor(Date.now() / 1000) + 86400 * 3} label="Closes in" />
+        </div>
+      </section>
+
+      {/* Deadlines */}
+      <section className="gallery-section">
+        <h2>Deadlines</h2>
+        <div className="gallery-row">
+          <Deadline unixSeconds={FUTURE_DEADLINE} label="Applications close" />
+          <Deadline unixSeconds={PAST_DEADLINE} label="Review closed" />
         </div>
       </section>
 
       {/* Table */}
       <section className="gallery-section">
         <h2>Table</h2>
-        <Table columns={tableColumns} data={tableData} keyField="role" />
+        <Table columns={tableColumns} rows={tableData} keyOf={(row) => row.role} caption="Roles and actions" />
+      </section>
+
+      {/* List */}
+      <section className="gallery-section">
+        <h2>List</h2>
+        <List label="Recent awards">
+          <ListRow title="Award to GA7Q…VSGZ" meta="2 of 4 tranches released" trailing={<Badge tone="success">Active</Badge>} />
+          <ListRow title="Award to GCNB…K2LQ" meta="Awaiting attestation" trailing={<Badge tone="warning">Pending</Badge>} />
+        </List>
       </section>
 
       {/* Async States */}
@@ -165,8 +201,11 @@ export function ComponentGallery(): React.JSX.Element {
         <h2>Async & Feedback States</h2>
         <div className="gallery-grid">
           <Skeleton variant="card" label="Loading card" />
-          <EmptyState title="No Applications Found" message="There are currently no submissions for this round." />
-          <ErrorPanel title="Submission Failed" message="The transaction simulation was rejected by the network." />
+          <Loading label="Loading applications" />
+          <PendingState title="Waiting for confirmation" note="Your wallet has signed; the network is confirming." live={false} />
+          <Success title="Contribution confirmed" description="The funds are now in the programme." live={false} />
+          <Empty title="No Applications Found" description="There are currently no submissions for this round." />
+          <ErrorState error={new Error('HostError: Error(Contract, #2)')} contract="program" />
         </div>
       </section>
 
@@ -176,17 +215,21 @@ export function ComponentGallery(): React.JSX.Element {
         <Button variant="secondary" onClick={() => setModalOpen(true)}>
           Open Demo Modal
         </Button>
-        {modalOpen && (
-          <Modal title="Confirm Action" onClose={() => setModalOpen(false)}>
-            <p className="text-muted">
-              This is a demonstration modal rendered using the standard Milepost Modal component.
-            </p>
-            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>
+        <Modal
+          open={modalOpen}
+          title="Confirm Action"
+          onClose={() => setModalOpen(false)}
+          footer={
+            <>
               <Button variant="primary" onClick={() => setModalOpen(false)}>Confirm</Button>
               <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
-            </div>
-          </Modal>
-        )}
+            </>
+          }
+        >
+          <p className="text-muted">
+            This is a demonstration modal rendered using the standard Milepost Modal component.
+          </p>
+        </Modal>
       </section>
     </div>
   );

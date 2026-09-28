@@ -31,15 +31,9 @@ npm run lint    # eslint, including React Compiler rules
 npm test        # vitest
 ```
 
-### Development Modes
-
-**Fixture Mode (`VITE_FIXTURES=1`).** To build and inspect screens locally without connecting a Freighter wallet or needing funded testnet accounts, start the frontend in fixture mode:
-```sh
-VITE_FIXTURES=1 npm run dev
-```
-In fixture mode, contract reads and indexed data are powered by stand-in fixtures (`src/fixtures/`), enabling full exploration of every phase, mode, and error state. Fixture code is never bundled in production builds.
-
-**Component Gallery (`/dev/ui`).** In development builds, navigate to `/dev/ui` to browse an interactive showcase of all UI kit components (`src/components/ui/` and `src/components/state/`) across states and themes.
+With `npm run dev`, `/dev/ui` shows every component in `src/components/ui/`
+and `src/components/state/` in its states, in both themes. It exists only in
+development builds; CI fails if it reaches a production build.
 
 Node 24. ESLint 10 requires `^20.19 || ^22.13 || >=24`.
 
