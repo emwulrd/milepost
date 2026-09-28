@@ -1,107 +1,67 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useWallet } from '../context/useWallet';
 import { parseAmount } from '../lib/amount';
+import { useIndexedList } from './useIndexedList';
 
 export interface BalancesState {
+  /** Native XLM in stroops, or null when the read failed or has not landed. */
   xlm: bigint | null;
-  asset: bigint | null;
-  assetCode: string;
+  /** True when the account does not exist on the network yet, or holds 0 XLM. */
   isUnfunded: boolean;
   loading: boolean;
   error: Error | null;
-  refetch: () => Promise<void>;
+  refetch: () => void;
 }
 
 const HORIZON_TESTNET_URL = 'https://horizon-testnet.stellar.org';
 
+interface AccountRead {
+  xlm: bigint;
+  isUnfunded: boolean;
+}
+
+async function readAccount(address: string): Promise<AccountRead> {
+  const response = await fetch(`${HORIZON_TESTNET_URL}/accounts/${encodeURIComponent(address)}`);
+
+  // Horizon answers 404 for an account that has never been funded.
+  if (response.status === 404) return { xlm: 0n, isUnfunded: true };
+  if (!response.ok) throw new Error(`Horizon error: ${response.statusText}`);
+
+  const data = await response.json();
+  const balances = (data.balances || []) as Array<{ asset_type: string; balance: string }>;
+  const native = balances.find((b) => b.asset_type === 'native');
+  const xlm = native ? parseAmount(native.balance) : 0n;
+  return { xlm, isUnfunded: xlm === 0n };
+}
+
 /**
- * Reads native XLM balance (and optional programme asset) for an address.
+ * Reads the native XLM balance for an address.
  * Automatically refreshes when a contract transaction succeeds.
  */
 export function useBalances(targetAddress?: string | null): BalancesState {
   const wallet = useWallet();
   const address = targetAddress !== undefined ? targetAddress : wallet.address;
 
-  const [xlm, setXlm] = useState<bigint | null>(null);
-  const [asset, setAsset] = useState<bigint | null>(null);
-  const [isUnfunded, setIsUnfunded] = useState(false);
-  const [loading, setLoading] = useState(Boolean(address));
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchBalances = useCallback(async () => {
-    if (!address) {
-      setXlm(null);
-      setAsset(null);
-      setIsUnfunded(false);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${HORIZON_TESTNET_URL}/accounts/${encodeURIComponent(address)}`);
-      
-      if (response.status === 404) {
-        // Account does not exist on testnet -> unfunded
-        setIsUnfunded(true);
-        setXlm(0n);
-        setAsset(0n);
-        setLoading(false);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Horizon error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const balances = (data.balances || []) as Array<{ asset_type: string; balance: string }>;
-      
-      const native = balances.find((b) => b.asset_type === 'native');
-      if (native) {
-        const stroops = parseAmount(native.balance);
-        setXlm(stroops);
-        setIsUnfunded(stroops === 0n);
-      } else {
-        setXlm(0n);
-        setIsUnfunded(true);
-      }
-
-      setAsset(0n);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setXlm(null);
-      setAsset(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [address]);
+  const read = useIndexedList(() => readAccount(address as string), [address], {
+    enabled: Boolean(address),
+  });
+  const { refetch } = read;
 
   useEffect(() => {
-    void fetchBalances();
-  }, [fetchBalances]);
-
-  useEffect(() => {
-    const handleTxSuccess = () => {
-      void fetchBalances();
-    };
-
-    window.addEventListener('milepost:transaction-success', handleTxSuccess);
+    window.addEventListener('milepost:transaction-success', refetch);
     return () => {
-      window.removeEventListener('milepost:transaction-success', handleTxSuccess);
+      window.removeEventListener('milepost:transaction-success', refetch);
     };
-  }, [fetchBalances]);
+  }, [refetch]);
+
+  const error =
+    read.error == null ? null : read.error instanceof Error ? read.error : new Error(String(read.error));
 
   return {
-    xlm,
-    asset,
-    assetCode: 'XLM',
-    isUnfunded,
-    loading,
+    xlm: address && !error ? (read.data?.xlm ?? null) : null,
+    isUnfunded: Boolean(address) && !error && (read.data?.isUnfunded ?? false),
+    loading: Boolean(address) && read.fetching,
     error,
-    refetch: fetchBalances,
+    refetch,
   };
 }

@@ -131,7 +131,7 @@
   padding: var(--space-3) var(--space-5-5);
 }
 
-/* Paradigm Shift Bento */
+/* Section headings */
 .section-header {
   margin-bottom: 3rem;
 }
@@ -143,8 +143,6 @@
 
 /* Helper text utilities */
 .text-muted { color: var(--text-muted); }
-.text-error { color: var(--danger-strong); }
-.text-success { color: var(--success-strong); }
 
 
 /* Roles */
